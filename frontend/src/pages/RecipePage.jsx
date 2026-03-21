@@ -1,11 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import API from '../api/api';
 import LoadingSpinner from '../components/LoadingSpinner';
 
 export default function RecipePage() {
   const { recipeId } = useParams();
   const navigate = useNavigate();
+  //
+  const location = useLocation(); // Catch the data passed from the router
+  // Safely extract the accessLevel. If it's missing, default to 'viewer' for safety.
+  const accessLevel = location.state?.accessLevel || 'viewer'; 
+  const canEdit = ['owner', 'editor'].includes(accessLevel);
+  //
   const [recipe, setRecipe] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -52,7 +58,11 @@ export default function RecipePage() {
             <p style={{ whiteSpace: 'pre-wrap' }}>{recipe.description || 'אין תיאור'}</p>
           </>
         )}
-        <button className="btn" onClick={() => navigate(`/recipes/${recipe.id}/edit`)}>עדכון מתכון</button>
+        {canEdit ? (
+          <button className="btn" onClick={() => navigate(`/recipes/${recipe.id}/edit`)}>
+            עדכון מתכון
+          </button>
+        ) : null}
       </div>
     </div>
   );

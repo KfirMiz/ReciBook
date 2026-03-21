@@ -108,13 +108,13 @@ export default function BookPage() {
       <section className="book-grid" style={{ marginTop: 14 }}>
         {recipes.map((recipe) => (
           <article className="book-card" key={recipe.id}>
-            <button className="unstyled-link" onClick={() => navigate(`/recipes/${recipe.id}`)}>
+            <button className="unstyled-link" onClick={() => navigate(`/recipes/${recipe.id}`, { state: { accessLevel: book.accessLevel } })}>
               {recipe.pictureURL
                 ? <img src={recipe.pictureURL} alt={recipe.name} className="book-thumb" />
                 : <div className="book-thumb placeholder">{recipe.name[0]}</div>}
             </button>
             <div className="book-body">
-              <button className="unstyled-link book-name" onClick={() => navigate(`/recipes/${recipe.id}`)}>
+              <button className="unstyled-link book-name" onClick={() => navigate(`/recipes/${recipe.id}`, { state: { accessLevel: book.accessLevel } })}>
                 {recipe.name}
               </button>
               <p className="muted">יוצר: {recipe.creatorNickname || 'לא ידוע'}</p>
