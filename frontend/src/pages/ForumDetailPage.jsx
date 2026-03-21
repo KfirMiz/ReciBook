@@ -9,14 +9,17 @@ export default function BookPage() {
   const [book, setBook] = useState(null);
   const [recipes, setRecipes] = useState([]);
   const [shareForm, setShareForm] = useState({ nickname: '', role: 'viewer' });
-  const [search, setSearch] = useState('');
+  //const [search, setSearch] = useState('');
+  const [searchInput, setSearchInput] = useState(''); // Controls what you see in the box
+  const [searchQuery, setSearchQuery] = useState(''); // Controls what goes to the API
+  //
   const [loading, setLoading] = useState(true);
   const load = useCallback(async () => {
     try {
       setLoading(true);
       const [bookRes, recipesRes] = await Promise.all([
         API.get(`/books/${bookId}`),
-        API.get(`/books/${bookId}/recipes`, { params: { q: search } }),
+        API.get(`/books/${bookId}/recipes`, { params: { q: searchQuery } }), // Changed to searchQuery
       ]);
       setBook(bookRes.data);
       setRecipes(recipesRes.data);
@@ -26,9 +29,19 @@ export default function BookPage() {
     } finally {
       setLoading(false);
     }
-  }, [bookId, search, navigate]);
+  }, [bookId, searchQuery, navigate]); // Changed dependency to searchQuery
 
   useEffect(() => { load(); }, [load]);
+  // NEW
+  useEffect(() => {
+    // Set a timer to update the actual search query 300ms after you stop typing
+    const delayDebounceFn = setTimeout(() => {
+      setSearchQuery(searchInput);
+    }, 300);
+
+    // This cleanup function clears the timer if you type another letter before the 300ms is up
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchInput]);
 
   const shareBook = async (e) => {
     e.preventDefault();
@@ -42,7 +55,8 @@ export default function BookPage() {
     }
   };
 
-  if (loading) return <LoadingSpinner />;
+  //if (loading) return <LoadingSpinner />;
+  if (loading && !book) return <LoadingSpinner />;
   if (!book) return null;
 
   const isOwner = book.accessLevel === 'owner';
@@ -84,10 +98,11 @@ export default function BookPage() {
           <input
             className="input"
             placeholder="חיפוש מתכון לפי שם"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            value={searchInput} // Changed to searchInput
+            onChange={(e) => setSearchInput(e.target.value)} // Changed to setSearchInput
+            onKeyDown={(e) => e.key === 'Enter' && setSearchQuery(searchInput)} // Bonus: allows searching by hitting Enter!
           />
-          <button className="btn btn-secondary" onClick={load}>חיפוש</button>
+          {/*<button className="btn btn-secondary" onClick={() => setSearchQuery(searchInput)}>חיפוש</button> */} 
         </div>
       </div>
       <section className="book-grid" style={{ marginTop: 14 }}>
