@@ -67,6 +67,25 @@ export default function RecipeFormPage() {
     }
   };
 
+  const deleteRecipe = async () => {
+    // 1. Pop up the confirmation message
+    const isConfirmed = window.confirm('האם אתה בטוח שברצונך למחוק מתכון זה? פעולה זו בלתי הפיכה.');
+    
+    // 2. If they click "Cancel", stop the function right here
+    if (!isConfirmed) return;
+
+    // 3. If they click "OK", proceed with the deletion
+    try {
+      await API.delete(`/recipes/${recipeId}`);
+      alert('המתכון נמחק בהצלחה');
+      
+      // Navigate back to the specific book if we have the ID, otherwise back to the main books page
+      navigate(bookId ? `/books/${bookId}` : '/books'); 
+    } catch (err) {
+      alert(err.response?.data?.message || 'מחיקת מתכון נכשלה');
+    }
+  };
+
   return (
     <div className="container narrow">
       <div className="card">
@@ -137,9 +156,24 @@ export default function RecipeFormPage() {
             </>
           )}
           <input type="file" accept="image/*" onChange={(e) => e.target.files[0] && uploadImage(e.target.files[0])} />
-          <button className="btn" type="submit" disabled={uploading}>
-            {uploading ? 'מעלה תמונה...' : isEdit ? 'שמירת שינויים' : 'יצירת מתכון'}
-          </button>
+          
+          <div className="row-wrap" style={{ marginTop: '20px', justifyContent: 'space-between' }}>
+            <button className="btn" type="submit" disabled={uploading}>
+              {uploading ? 'מעלה תמונה...' : isEdit ? 'שמירת שינויים' : 'יצירת מתכון'}
+            </button>
+
+            {/* Only show the delete button if we are editing an existing recipe */}
+            {isEdit ? (
+              <button 
+                type="button" 
+                className="btn" 
+                style={{ backgroundColor: '#ff4d4f', color: 'white', borderColor: '#ff4d4f' }}
+                onClick={deleteRecipe}
+              >
+                מחיקת מתכון
+              </button>
+            ) : null}
+          </div>
         </form>
       </div>
     </div>

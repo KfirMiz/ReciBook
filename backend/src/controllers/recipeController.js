@@ -87,3 +87,31 @@ export const updateRecipe = async (req, res) => {
     res.status(400).json({ message: err.message });
   }
 };
+
+export const deleteRecipe = async (req, res) => {
+  try {
+    // 1. Find the recipe and populate the book so we can check permissions
+    const recipe = await Recipe.findById(req.params.id).populate('bookId');
+    if (!recipe) return res.status(404).json({ message: 'Recipe not found' });
+    
+    // 2. Check if the user has permission to edit (which includes deleting)
+    if (!hasBookEditAccess(recipe.bookId, req.user._id)) {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+
+    // 3. Remove the recipe ID from the parent book's array
+    const book = await Book.findById(recipe.bookId._id);
+    if (book) {
+      book.recipes.pull(recipe._id); // Mongoose method to remove an item from an array
+      await book.save();
+    }
+
+    // 4. Delete the actual recipe document from the database
+    await recipe.deleteOne();
+
+    // 5. Send success response
+    res.json({ message: 'Recipe deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
