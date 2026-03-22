@@ -71,7 +71,18 @@ main { padding: 14px; }
 .row-between { display: flex; justify-content: space-between; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
 .inline-form { display: flex; gap: 8px; flex-wrap: wrap; width: 100%; }
 
-.book-grid { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+/*.book-grid { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }*/
+.book-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr); /* 2 columns for phones */
+  gap: 12px;
+}
+/* If the screen is wider than 768px (tablets/desktops), switch to 4 columns */
+@media (min-width: 768px) {
+  .book-grid {
+    grid-template-columns: repeat(4, 1fr); 
+  }
+}
 .book-card { border: 1px solid var(--border); background: var(--surface); border-radius: 12px; overflow: hidden; }
 .book-thumb { width: 100%; aspect-ratio: 1/1; object-fit: cover; display: block; }
 .book-thumb.placeholder { display: grid; place-items: center; font-size: 2rem; background: #ecd3bb; }
