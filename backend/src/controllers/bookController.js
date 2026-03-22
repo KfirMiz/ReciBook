@@ -54,7 +54,15 @@ export const createBook = async (req, res) => {
 
 export const getBookById = async (req, res) => {
   try {
-    const book = await Book.findById(req.params.id);
+    // Change this line:
+    // const book = await Book.findById(req.params.id);
+    
+    // To this:
+    const book = await Book.findById(req.params.id)
+      .populate('ownerId', 'nickname pictureURL')
+      .populate('editors', 'nickname pictureURL')
+      .populate('viewers', 'nickname pictureURL');
+
     if (!book) return res.status(404).json({ message: 'Book not found' });
     const userId = req.user?._id;
     if (!hasBookViewAccess(book, userId)) return res.status(403).json({ message: 'Not authorized' });
@@ -90,7 +98,8 @@ export const shareBook = async (req, res) => {
   try {
     const { nickname, role } = req.body;
     if (!nickname || !role) return res.status(400).json({ message: 'Nickname and role are required' });
-    if (!['editor', 'viewer'].includes(role)) return res.status(400).json({ message: 'Invalid role' });
+    //if (!['editor', 'viewer'].includes(role)) return res.status(400).json({ message: 'Invalid role' });
+    if (!['editor', 'viewer', 'remove'].includes(role)) return res.status(400).json({ message: 'Invalid role' });
 
     const book = await Book.findById(req.params.id);
     if (!book) return res.status(404).json({ message: 'Book not found' });
@@ -129,13 +138,14 @@ export const getBookRecipes = async (req, res) => {
     if (q) filter.name = { $regex: q, $options: 'i' };
 
     const recipes = await Recipe.find(filter)
-      .populate('creatorId', 'nickname')
+      .populate('creatorId', 'nickname pictureURL') // <-- Added pictureURL
       .sort({ createdAt: -1 });
     res.json(recipes.map((recipe) => ({
       id: recipe._id,
       bookId: recipe.bookId,
       creatorId: recipe.creatorId?._id || recipe.creatorId,
       creatorNickname: recipe.creatorId?.nickname || '',
+      creatorAvatar: recipe.creatorId?.pictureURL || '', // <-- Added this exact line!
       name: recipe.name,
       type: recipe.type,
       ingredients: recipe.ingredients,

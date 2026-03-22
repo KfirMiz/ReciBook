@@ -7,6 +7,7 @@ const normalizeRecipe = (recipe) => ({
   bookId: recipe.bookId?._id || recipe.bookId,
   creatorId: recipe.creatorId?._id || recipe.creatorId,
   creatorNickname: recipe.creatorId?.nickname || '',
+  creatorAvatar: recipe.creatorId?.pictureURL || '', // this is new
   name: recipe.name,
   type: recipe.type,
   ingredients: recipe.ingredients,
@@ -42,7 +43,8 @@ export const createRecipe = async (req, res) => {
 
     book.recipes.push(recipe._id);
     await book.save();
-    await recipe.populate('creatorId', 'nickname');
+    // Add pictureURL to the list of fields to fetch
+    await recipe.populate('creatorId', 'nickname pictureURL');
 
     res.status(201).json(normalizeRecipe(recipe));
   } catch (err) {
@@ -53,7 +55,7 @@ export const createRecipe = async (req, res) => {
 export const getRecipeById = async (req, res) => {
   try {
     const recipe = await Recipe.findById(req.params.id)
-      .populate('creatorId', 'nickname')
+      .populate('creatorId', 'nickname pictureURL')
       .populate('bookId');
     if (!recipe) return res.status(404).json({ message: 'Recipe not found' });
     if (!hasBookViewAccess(recipe.bookId, req.user?._id)) {
@@ -81,7 +83,8 @@ export const updateRecipe = async (req, res) => {
     if (typeof pictureURL === 'string') recipe.pictureURL = pictureURL;
 
     await recipe.save();
-    await recipe.populate('creatorId', 'nickname');
+    // Add pictureURL to the list of fields to fetch
+    await recipe.populate('creatorId', 'nickname pictureURL');
     res.json(normalizeRecipe(recipe));
   } catch (err) {
     res.status(400).json({ message: err.message });

@@ -9,17 +9,19 @@ export default function BookPage() {
   const [book, setBook] = useState(null);
   const [recipes, setRecipes] = useState([]);
   const [shareForm, setShareForm] = useState({ nickname: '', role: 'viewer' });
-  //const [search, setSearch] = useState('');
-  const [searchInput, setSearchInput] = useState(''); // Controls what you see in the box
-  const [searchQuery, setSearchQuery] = useState(''); // Controls what goes to the API
-  //
+  const [searchInput, setSearchInput] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
+  
+  // NEW: State to track which dropdown is open
+  const [openDropdownId, setOpenDropdownId] = useState(null);
+
   const load = useCallback(async () => {
     try {
       setLoading(true);
       const [bookRes, recipesRes] = await Promise.all([
         API.get(`/books/${bookId}`),
-        API.get(`/books/${bookId}/recipes`, { params: { q: searchQuery } }), // Changed to searchQuery
+        API.get(`/books/${bookId}/recipes`, { params: { q: searchQuery } }),
       ]);
       setBook(bookRes.data);
       setRecipes(recipesRes.data);
@@ -29,17 +31,14 @@ export default function BookPage() {
     } finally {
       setLoading(false);
     }
-  }, [bookId, searchQuery, navigate]); // Changed dependency to searchQuery
+  }, [bookId, searchQuery, navigate]);
 
   useEffect(() => { load(); }, [load]);
-  // NEW
+
   useEffect(() => {
-    // Set a timer to update the actual search query 300ms after you stop typing
     const delayDebounceFn = setTimeout(() => {
       setSearchQuery(searchInput);
     }, 300);
-
-    // This cleanup function clears the timer if you type another letter before the 300ms is up
     return () => clearTimeout(delayDebounceFn);
   }, [searchInput]);
 
@@ -55,7 +54,103 @@ export default function BookPage() {
     }
   };
 
-  //if (loading) return <LoadingSpinner />;
+  // UPDATED: No more prompt, just confirm and execute
+  const handleRoleChange = async (user, newRole) => {
+    setOpenDropdownId(null); // Close the dropdown immediately
+
+    const confirmMsg = newRole === 'remove' 
+      ? `האם אתה בטוח שברצונך להסיר את הגישה של ${user.nickname} לחלוטין?`
+      : `האם אתה בטוח שברצונך לשנות את ההרשאה של ${user.nickname}?`;
+
+    if (!window.confirm(confirmMsg)) return;
+
+    try {
+      await API.post(`/books/${bookId}/share`, { nickname: user.nickname, role: newRole });
+      alert('ההרשאות עודכנו בהצלחה');
+      load(); 
+    } catch (err) {
+      alert(err.response?.data?.message || 'שגיאה בעדכון הרשאות');
+    }
+  };
+
+  // UPDATED: Includes the dropdown menu UI
+  const renderUserPill = (user, roleLabel, roleType) => {
+    if (!user || typeof user === 'string') return null; 
+    
+    const isOwnerLogged = book?.accessLevel === 'owner';
+    const isClickable = isOwnerLogged && roleType !== 'owner';
+    const isOpen = openDropdownId === user._id;
+    
+    return (
+      <div key={user._id} style={{ position: 'relative', display: 'inline-block', marginRight: '8px', marginBottom: '8px' }}>
+        
+        {/* The Clickable Pill */}
+        <div 
+          onClick={() => isClickable ? setOpenDropdownId(isOpen ? null : user._id) : undefined}
+          title={isClickable ? 'לחץ לניהול הרשאות' : ''}
+          style={{ 
+            display: 'inline-flex', 
+            alignItems: 'center', 
+            gap: '6px', 
+            background: isOpen ? '#e0e0e0' : '#f0f0f0', // Darkens slightly when open
+            padding: '4px 10px', 
+            borderRadius: '16px', 
+            fontSize: '0.85em', 
+            cursor: isClickable ? 'pointer' : 'default',
+            border: isClickable ? '1px solid #ccc' : '1px solid transparent',
+          }}
+        >
+          {user.pictureURL && (
+            <img src={user.pictureURL} alt={user.nickname} style={{ width: '20px', height: '20px', borderRadius: '50%', objectFit: 'cover' }} />
+          )}
+          <span>{user.nickname} <span style={{ color: '#888', fontSize: '0.9em' }}>({roleLabel})</span></span>
+        </div>
+
+        {/* The Dropdown Menu */}
+        {isOpen && (
+          <div style={{
+            position: 'absolute',
+            top: '100%',
+            right: 0,
+            marginTop: '4px',
+            backgroundColor: 'white',
+            border: '1px solid #ddd',
+            borderRadius: '8px',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+            zIndex: 10,
+            minWidth: '130px',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden'
+          }}>
+            {roleType !== 'editor' && (
+              <button 
+                onClick={() => handleRoleChange(user, 'editor')}
+                style={{ background: 'none', border: 'none', borderBottom: '1px solid #eee', padding: '10px', textAlign: 'right', cursor: 'pointer', width: '100%' }}
+              >
+                שנה לעורך
+              </button>
+            )}
+            {roleType !== 'viewer' && (
+              <button 
+                onClick={() => handleRoleChange(user, 'viewer')}
+                style={{ background: 'none', border: 'none', borderBottom: '1px solid #eee', padding: '10px', textAlign: 'right', cursor: 'pointer', width: '100%' }}
+              >
+                שנה לצופה
+              </button>
+            )}
+            <button 
+              onClick={() => handleRoleChange(user, 'remove')}
+              style={{ background: 'none', border: 'none', padding: '10px', textAlign: 'right', cursor: 'pointer', width: '100%', color: '#ff4d4f', fontWeight: 'bold' }}
+            >
+              הסר גישה
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   if (loading && !book) return <LoadingSpinner />;
   if (!book) return null;
 
@@ -69,6 +164,13 @@ export default function BookPage() {
         <h2 className="page-title">{book.name}</h2>
         {book.pictureURL ? <img src={book.pictureURL} alt={book.name} className="hero-image" /> : null}
         <p className="muted">הרשאה: {book.accessLevel}</p>
+        
+        <div style={{ marginBottom: '16px', borderBottom: '1px solid #eee', paddingBottom: '12px' }}>
+          {renderUserPill(book.ownerId, 'בעלים', 'owner')}
+          {book.editors?.map(editor => renderUserPill(editor, 'עורך', 'editor'))}
+          {book.viewers?.map(viewer => renderUserPill(viewer, 'צופה', 'viewer'))}
+        </div>
+
         <div className="row-wrap">
           {canEdit ? (
             <button className="btn" onClick={() => navigate(`/books/${bookId}/recipes/new`)}>הוספת מתכון</button>
@@ -98,11 +200,10 @@ export default function BookPage() {
           <input
             className="input"
             placeholder="חיפוש מתכון לפי שם"
-            value={searchInput} // Changed to searchInput
-            onChange={(e) => setSearchInput(e.target.value)} // Changed to setSearchInput
-            onKeyDown={(e) => e.key === 'Enter' && setSearchQuery(searchInput)} // Bonus: allows searching by hitting Enter!
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && setSearchQuery(searchInput)}
           />
-          {/*<button className="btn btn-secondary" onClick={() => setSearchQuery(searchInput)}>חיפוש</button> */} 
         </div>
       </div>
       <section className="book-grid" style={{ marginTop: 14 }}>
@@ -117,7 +218,16 @@ export default function BookPage() {
               <button className="unstyled-link book-name" onClick={() => navigate(`/recipes/${recipe.id}`, { state: { accessLevel: book.accessLevel } })}>
                 {recipe.name}
               </button>
-              <p className="muted">יוצר: {recipe.creatorNickname || 'לא ידוע'}</p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
+                {recipe.creatorAvatar ? (
+                  <img 
+                    src={recipe.creatorAvatar} 
+                    alt={recipe.creatorNickname} 
+                    style={{ width: '24px', height: '24px', borderRadius: '50%', objectFit: 'cover' }} 
+                  />
+                ) : null}
+                <p className="muted" style={{ margin: 0, fontSize: '0.9em' }}>יוצר: {recipe.creatorNickname || 'לא ידוע'}</p>
+              </div>
             </div>
           </article>
         ))}

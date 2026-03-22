@@ -40,7 +40,16 @@ export default function RecipePage() {
         <button className="btn btn-secondary" onClick={() => navigate(`/books/${recipe.bookId}`)}>חזרה לספר</button>
         <h1 className="page-title">{recipe.name}</h1>
         {recipe.pictureURL ? <img src={recipe.pictureURL} alt={recipe.name} className="hero-image" /> : null}
-        <p className="muted">נוצר על ידי: {recipe.creatorNickname || 'לא ידוע'}</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+          {recipe.creatorAvatar ? (
+            <img 
+              src={recipe.creatorAvatar} 
+              alt={recipe.creatorNickname} 
+              style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' }} 
+            />
+          ) : null}
+          <p className="muted" style={{ margin: 0 }}>נוצר על ידי: {recipe.creatorNickname || 'לא ידוע'}</p>
+        </div>
         {recipe.type === 'regular' ? (
           <>
             <h3>מרכיבים</h3>
