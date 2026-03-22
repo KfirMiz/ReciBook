@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import API from '../api/api';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -15,6 +15,8 @@ export default function BookPage() {
   
   // NEW: State to track which dropdown is open
   const [openDropdownId, setOpenDropdownId] = useState(null);
+  // NEW: Create a reference to anchor our screen
+  const searchRef = useRef(null);
 
   const load = useCallback(async () => {
     try {
@@ -196,17 +198,31 @@ export default function BookPage() {
             </form>
           ) : null}
         </div>
-        <div className="row-wrap">
+        {/* UPDATED: Added ref, scrollMargin, and onFocus */}
+        <div 
+          className="row-wrap" 
+          ref={searchRef} 
+          style={{ scrollMarginTop: '80px' }} 
+        >
           <input
             className="input"
             placeholder="חיפוש מתכון לפי שם"
             value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
+            //onChange={(e) => setSearchInput(e.target.value)}
+            onChange={(e) => {
+              setSearchInput(e.target.value);
+              // Gently anchor the view on every keystroke
+              searchRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }}
             onKeyDown={(e) => e.key === 'Enter' && setSearchQuery(searchInput)}
+            onFocus={() => {
+              // Smoothly scroll the view to this box the moment they tap it
+              searchRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }}
           />
         </div>
       </div>
-      <section className="book-grid" style={{ marginTop: 14 }}>
+      <section className="book-grid" style={{ marginTop: 14, minHeight: '33vh' }}>
         {recipes.map((recipe) => (
           <article className="book-card" key={recipe.id}>
             <button className="unstyled-link" onClick={() => navigate(`/recipes/${recipe.id}`, { state: { accessLevel: book.accessLevel } })}>
