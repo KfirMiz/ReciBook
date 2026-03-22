@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import API from '../api/api';
 import LoadingSpinner from '../components/LoadingSpinner';
+import { uploadToCloudinary } from '../utils/uploadToCloudinary';
 
 export default function BookPage() {
   const { bookId } = useParams();
@@ -13,10 +14,12 @@ export default function BookPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   
-  // NEW: State to track which dropdown is open
   const [openDropdownId, setOpenDropdownId] = useState(null);
-  // NEW: Create a reference to anchor our screen
   const searchRef = useRef(null);
+
+  const [isEditingBook, setIsEditingBook] = useState(false);
+  const [editForm, setEditForm] = useState({ name: '', pictureURL: '', visibility: 'private' });
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -56,9 +59,8 @@ export default function BookPage() {
     }
   };
 
-  // UPDATED: No more prompt, just confirm and execute
   const handleRoleChange = async (user, newRole) => {
-    setOpenDropdownId(null); // Close the dropdown immediately
+    setOpenDropdownId(null); 
 
     const confirmMsg = newRole === 'remove' 
       ? `האם אתה בטוח שברצונך להסיר את הגישה של ${user.nickname} לחלוטין?`
@@ -75,7 +77,52 @@ export default function BookPage() {
     }
   };
 
-  // UPDATED: Includes the dropdown menu UI
+  const startEditingBook = () => {
+    setEditForm({ 
+      name: book.name, 
+      pictureURL: book.pictureURL || '',
+      visibility: book.visibility || 'private'
+    });
+    setIsEditingBook(true);
+  };
+
+  const handleBookImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploadingImage(true);
+    try {
+      const url = await uploadToCloudinary(file);
+      setEditForm((prev) => ({ ...prev, pictureURL: url }));
+    } catch {
+      alert('העלאת התמונה נכשלה');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const saveBookDetails = async () => {
+    if (!editForm.name.trim()) {
+      return alert('שם הספר לא יכול להיות ריק');
+    }
+    try {
+      await API.put(`/books/${bookId}`, { 
+        name: editForm.name.trim(), 
+        pictureURL: editForm.pictureURL,
+        visibility: editForm.visibility
+      });
+      setBook((prev) => ({ 
+        ...prev, 
+        name: editForm.name.trim(), 
+        pictureURL: editForm.pictureURL,
+        visibility: editForm.visibility
+      }));
+      setIsEditingBook(false);
+      alert('פרטי הספר עודכנו בהצלחה');
+    } catch (err) {
+      alert(err.response?.data?.message || 'שגיאה בעדכון הספר');
+    }
+  };
+
   const renderUserPill = (user, roleLabel, roleType) => {
     if (!user || typeof user === 'string') return null; 
     
@@ -85,8 +132,6 @@ export default function BookPage() {
     
     return (
       <div key={user._id} style={{ position: 'relative', display: 'inline-block', marginRight: '8px', marginBottom: '8px' }}>
-        
-        {/* The Clickable Pill */}
         <div 
           onClick={() => isClickable ? setOpenDropdownId(isOpen ? null : user._id) : undefined}
           title={isClickable ? 'לחץ לניהול הרשאות' : ''}
@@ -94,7 +139,7 @@ export default function BookPage() {
             display: 'inline-flex', 
             alignItems: 'center', 
             gap: '6px', 
-            background: isOpen ? '#e0e0e0' : '#f0f0f0', // Darkens slightly when open
+            background: isOpen ? '#e0e0e0' : '#f0f0f0',
             padding: '4px 10px', 
             borderRadius: '16px', 
             fontSize: '0.85em', 
@@ -108,7 +153,6 @@ export default function BookPage() {
           <span>{user.nickname} <span style={{ color: '#888', fontSize: '0.9em' }}>({roleLabel})</span></span>
         </div>
 
-        {/* The Dropdown Menu */}
         {isOpen && (
           <div style={{
             position: 'absolute',
@@ -158,13 +202,99 @@ export default function BookPage() {
 
   const isOwner = book.accessLevel === 'owner';
   const canEdit = ['owner', 'editor'].includes(book.accessLevel);
+  
+  // Consistent label style from Profile page
+  const labelStyle = { fontSize: '0.9em', fontWeight: 'bold', color: 'var(--text)', marginBottom: '6px', display: 'block' };
 
   return (
     <div className="container">
       <button className="btn btn-secondary" onClick={() => navigate('/books')}>חזרה לספרים</button>
       <div className="card" style={{ marginTop: 12 }}>
-        <h2 className="page-title">{book.name}</h2>
-        {book.pictureURL ? <img src={book.pictureURL} alt={book.name} className="hero-image" /> : null}
+        
+        {isEditingBook ? (
+          <div style={{ padding: '14px', border: '1px solid var(--border)', borderRadius: '10px', marginBottom: '16px', backgroundColor: '#fffdf9' }}>
+            <h3 style={{ marginTop: 0, color: 'var(--primary-strong)' }}>עריכת פרטי הספר</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div>
+                <label style={labelStyle}>שם הספר</label>
+                <input 
+                  className="input" 
+                  value={editForm.name} 
+                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} 
+                  placeholder="הזן שם לספר"
+                />
+              </div>
+              <div>
+                <label style={labelStyle}>תמונת הספר</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  {editForm.pictureURL && (
+                    <img src={editForm.pictureURL} alt="preview" style={{ width: '60px', height: '60px', borderRadius: '8px', objectFit: 'cover' }} />
+                  )}
+                  <input type="file" accept="image/*" onChange={handleBookImageUpload} disabled={uploadingImage} />
+                  {uploadingImage && <span className="muted">מעלה...</span>}
+                </div>
+              </div>
+              
+              <div>
+                <label style={labelStyle}>הרשאות צפייה</label>
+                <select 
+                  className="input" 
+                  value={editForm.visibility} 
+                  onChange={(e) => setEditForm({ ...editForm, visibility: e.target.value })}
+                >
+                  <option value="private">פרטי (רק למוזמנים)</option>
+                  <option value="public">ציבורי (פתוח לכולם)</option>
+                </select>
+              </div>
+
+              <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid #ddd' }}>
+                 <label style={labelStyle}>שיתוף הספר עם משתמש חדש</label>
+                 <form onSubmit={shareBook} className="inline-form">
+                    <input
+                        className="input"
+                        placeholder="כינוי לשיתוף"
+                        value={shareForm.nickname}
+                        onChange={(e) => setShareForm((prev) => ({ ...prev, nickname: e.target.value }))}
+                        required
+                    />
+                    <select
+                        className="input"
+                        value={shareForm.role}
+                        onChange={(e) => setShareForm((prev) => ({ ...prev, role: e.target.value }))}
+                    >
+                        <option value="viewer">צופה</option>
+                        <option value="editor">עורך</option>
+                    </select>
+                    <button className="btn" type="submit">שיתוף</button>
+                </form>
+              </div>
+
+              <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                <button className="btn" onClick={saveBookDetails} disabled={uploadingImage}>שמור שינויים</button>
+                <button className="btn btn-secondary" onClick={() => setIsEditingBook(false)}>סגור עריכה</button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '10px' }}>
+              <h2 className="page-title" style={{ margin: 0 }}>
+                {book.name}
+                <span style={{ fontSize: '0.5em', verticalAlign: 'middle', marginLeft: '8px', padding: '4px 8px', borderRadius: '12px', background: '#eee', color: '#666', fontWeight: 'normal' }}>
+                  {book.visibility === 'public' ? 'ציבורי' : 'פרטי'}
+                </span>
+              </h2>
+              {isOwner && (
+                <button className="btn btn-secondary" style={{ padding: '6px 12px', fontSize: '0.85em' }} onClick={startEditingBook}>
+                  ערוך ספר
+                </button>
+              )}
+            </div>
+            <div style={{ height: '12px' }} />
+            {book.pictureURL ? <img src={book.pictureURL} alt={book.name} className="hero-image" /> : null}
+          </>
+        )}
+
         <p className="muted">הרשאה: {book.accessLevel}</p>
         
         <div style={{ marginBottom: '16px', borderBottom: '1px solid #eee', paddingBottom: '12px' }}>
@@ -177,51 +307,48 @@ export default function BookPage() {
           {canEdit ? (
             <button className="btn" onClick={() => navigate(`/books/${bookId}/recipes/new`)}>הוספת מתכון</button>
           ) : null}
-          {isOwner ? (
-            <form onSubmit={shareBook} className="inline-form">
-              <input
-                className="input"
-                placeholder="כינוי לשיתוף"
-                value={shareForm.nickname}
-                onChange={(e) => setShareForm((prev) => ({ ...prev, nickname: e.target.value }))}
-                required
-              />
-              <select
-                className="input"
-                value={shareForm.role}
-                onChange={(e) => setShareForm((prev) => ({ ...prev, role: e.target.value }))}
-              >
-                <option value="viewer">צופה</option>
-                <option value="editor">עורך</option>
-              </select>
-              <button className="btn" type="submit">שיתוף ספר</button>
-            </form>
-          ) : null}
         </div>
-        {/* UPDATED: Added ref, scrollMargin, and onFocus */}
+
+        {/* NEW: Title added for the search section */}
+        {/* UPDATED: Centered the label and input container */}
         <div 
-          className="row-wrap" 
           ref={searchRef} 
-          style={{ scrollMarginTop: '80px' }} 
+          style={{ 
+            scrollMarginTop: '80px', 
+            marginTop: '24px', 
+            display: 'flex', 
+            flexDirection: 'column', 
+            alignItems: 'center' // Centers the children horizontally
+          }} 
         >
-          <input
-            className="input"
-            placeholder="חיפוש מתכון לפי שם"
-            value={searchInput}
-            //onChange={(e) => setSearchInput(e.target.value)}
-            onChange={(e) => {
-              setSearchInput(e.target.value);
-              // Gently anchor the view on every keystroke
-              searchRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }}
-            onKeyDown={(e) => e.key === 'Enter' && setSearchQuery(searchInput)}
-            onFocus={() => {
-              // Smoothly scroll the view to this box the moment they tap it
-              searchRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }}
-          />
+          <label style={{ 
+            ...labelStyle, 
+            textAlign: 'center', 
+            width: '100%', 
+            marginBottom: '8px' 
+          }}>
+            חיפוש מתכונים
+          </label>
+          
+          <div className="row-wrap" style={{ marginTop: 0, width: '100%', justifyContent: 'center' }}>
+            <input
+              className="input"
+              placeholder="חפש לפי שם המנה..."
+              value={searchInput}
+              style={{ maxWidth: '500px' }} // Optional: keeps the search box from getting too wide on PC
+              onChange={(e) => {
+                setSearchInput(e.target.value);
+                searchRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }}
+              onKeyDown={(e) => e.key === 'Enter' && setSearchQuery(searchInput)}
+              onFocus={() => {
+                searchRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }}
+            />
+          </div>
         </div>
       </div>
+      
       <section className="book-grid" style={{ marginTop: 14, minHeight: '33vh' }}>
         {recipes.map((recipe) => (
           <article className="book-card" key={recipe.id}>

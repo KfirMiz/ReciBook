@@ -68,6 +68,19 @@ export default function ProfilePage() {
     }
   };
 
+  const inputWrapperStyle = { display: 'flex', flexDirection: 'column', gap: '6px' };
+  const labelStyle = { fontSize: '0.9em', fontWeight: 'bold', color: 'var(--text)' };
+  
+  // NEW: A style for our sub-headings to keep things organized
+  const sectionTitleStyle = { 
+    marginTop: '24px', 
+    marginBottom: '12px', 
+    fontSize: '1.1em', 
+    borderBottom: '1px solid var(--border)', 
+    paddingBottom: '8px', 
+    color: 'var(--primary-strong)' 
+  };
+
   return (
     <div className="container" style={{ maxWidth: 760 }}>
       <div className="card">
@@ -80,76 +93,101 @@ export default function ProfilePage() {
             </div>
           )}
           <div>
-            <h2 className="page-title" style={{ margin: 0 }}>פרופיל</h2>
-            <p className="muted" style={{ margin: 0 }}>כאן אפשר לעדכן כינוי, סיסמה ותמונת פרופיל.</p>
+            <h2 className="page-title" style={{ margin: 0 }}>פרופיל אישי</h2>
+            <p className="muted" style={{ margin: 0 }}>ניהול החשבון וההגדרות שלך.</p>
           </div>
         </div>
 
         <div style={{ height: 14 }} />
 
         <form onSubmit={submit} className="form">
-          <div className="grid-2">
-            <input
-              className="input"
-              placeholder="שם משתמש"
-              value={form.username}
-              readOnly
-            />
-            <input
-              className="input"
-              placeholder="כינוי"
-              value={form.nickname}
-              onChange={(e) => setForm({ ...form, nickname: e.target.value })}
-            />
+          
+          <h3 style={sectionTitleStyle}>פרטים כלליים</h3>
+          
+          <div className="grid-2" style={{ display: 'grid', gap: '10px', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
+            <div style={inputWrapperStyle}>
+              <label style={labelStyle}>שם משתמש (לא ניתן לשינוי)</label>
+              <input
+                className="input"
+                placeholder="שם משתמש"
+                value={form.username}
+                readOnly
+                style={{ backgroundColor: '#f5f5f5', color: '#888', cursor: 'not-allowed' }}
+              />
+            </div>
+            <div style={inputWrapperStyle}>
+              <label style={labelStyle}>כינוי (יוצג לשאר המשתמשים)</label>
+              <input
+                className="input"
+                placeholder="כינוי"
+                value={form.nickname}
+                onChange={(e) => setForm({ ...form, nickname: e.target.value })}
+              />
+            </div>
           </div>
 
-          <div className="grid-2">
-            <input
-              className="input"
-              placeholder="סיסמה נוכחית"
-              type="password"
-              value={form.currentPassword}
-              onChange={(e) => setForm({ ...form, currentPassword: e.target.value })}
-            />
-            <input
-              className="input"
-              placeholder="סיסמה חדשה (לא חובה)"
-              type="password"
-              value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
-            />
+          <div style={{ ...inputWrapperStyle, marginTop: '8px' }}>
+            <label style={labelStyle}>תמונת פרופיל</label>
+            <div
+              className="dropzone"
+              onDrop={handleDrop}
+              onDragOver={(e) => e.preventDefault()}
+              style={{ border: '2px dashed var(--border)', padding: '20px', textAlign: 'center', borderRadius: '10px' }}
+            >
+              {uploading ? (
+                <p className="muted" style={{ margin: 0 }}>מעלה...</p>
+              ) : form.pictureURL ? (
+                <img src={form.pictureURL} alt="preview" className="avatar" style={{ width: 86, height: 86, margin: '0 auto' }} />
+              ) : (
+                <p className="muted" style={{ margin: 0 }}>
+                  גרור או לחץ כאן לבחירת תמונת פרופיל חדשה
+                </p>
+              )}
+              <input type="file" accept="image/*" onChange={handleBrowse} style={{ marginTop: '10px' }} />
+            </div>
           </div>
 
-          <div
-            className="dropzone"
-            onDrop={handleDrop}
-            onDragOver={(e) => e.preventDefault()}
-          >
-            {uploading ? (
-              <p className="muted" style={{ margin: 0 }}>מעלה...</p>
-            ) : form.pictureURL ? (
-              <img src={form.pictureURL} alt="preview" className="avatar" style={{ width: 86, height: 86 }} />
-            ) : (
-              <p className="muted" style={{ margin: 0 }}>
-                גרור/בחר תמונת פרופיל חדשה
-              </p>
-            )}
-            <input type="file" accept="image/*" onChange={handleBrowse} />
+          {/* NEW: Password Section with a clear title */}
+          <h3 style={sectionTitleStyle}>שינוי סיסמה (אופציונלי)</h3>
+          
+          <div className="grid-2" style={{ display: 'grid', gap: '10px', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
+            <div style={inputWrapperStyle}>
+              <label style={labelStyle}>סיסמה נוכחית</label>
+              <input
+                className="input"
+                placeholder="הזן סיסמה נוכחית (לצורך אימות)"
+                type="password"
+                value={form.currentPassword}
+                onChange={(e) => setForm({ ...form, currentPassword: e.target.value })}
+              />
+            </div>
+            <div style={inputWrapperStyle}>
+              <label style={labelStyle}>סיסמה חדשה</label>
+              <input
+                className="input"
+                placeholder="הזן סיסמה חדשה"
+                type="password"
+                value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
+              />
+            </div>
           </div>
 
-          <button className="btn" type="submit" disabled={uploading}>
-            {uploading ? 'מעלה...' : 'שמירת שינויים'}
-          </button>
-          <button
-            className="btn btn-secondary"
-            type="button"
-            onClick={() => {
-              logout();
-              navigate('/');
-            }}
-          >
-            התנתקות
-          </button>
+          <div style={{ marginTop: '24px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+            <button className="btn" type="submit" disabled={uploading}>
+              {uploading ? 'מעלה...' : 'שמירת שינויים'}
+            </button>
+            <button
+              className="btn btn-secondary"
+              type="button"
+              onClick={() => {
+                logout();
+                navigate('/');
+              }}
+            >
+              התנתקות
+            </button>
+          </div>
         </form>
       </div>
     </div>

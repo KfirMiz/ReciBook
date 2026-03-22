@@ -55,9 +55,12 @@ export default function LoginPage() {
           />
           <button type="submit" className="btn">{isSignup ? 'הרשמה' : 'התחברות'}</button>
         </form>
+        
+        {/* NEW: Added marginTop for spacing, and width 100% to match the form design */}
         <button
           type="button"
           className="btn btn-secondary"
+          style={{ marginTop: '16px', width: '50%' }}
           onClick={() => setIsSignup((prev) => !prev)}
         >
           {isSignup ? 'יש לי חשבון, התחברות' : 'אין לך חשבון? צור אחד עכשיו!'}

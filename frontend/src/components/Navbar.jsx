@@ -13,7 +13,8 @@ export default function Navbar() {
 
   return (
     <nav className="nav">
-      <div className="container nav-inner">
+      {/* UPDATED: Added left and right padding to keep items away from the screen edges */}
+      <div className="container nav-inner" style={{ paddingLeft: '14px', paddingRight: '14px' }}>
         <div className="nav-right">
           <Link to="/" className="pill">בית</Link>
           <Link to="/books" className="pill">ספרים</Link>
