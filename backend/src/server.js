@@ -18,6 +18,7 @@ app.use(cors({
 
 app.use(express.json());
 
+app.get('/health', (req, res) => res.status(200).send('OK'));
 app.use('/api/users', userRoutes);
 app.use('/api/books', bookRoutes);
 app.use('/api', recipeRoutes);
